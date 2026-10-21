@@ -1,0 +1,63 @@
+{
+  "measurement": "redis-benchmark on this host; one run per configuration",
+  "before_timestamp_utc": "2026-10-18T16:40:24Z",
+  "after_timestamp_utc": "2026-10-18T16:43:00Z",
+  "rows": [
+    {
+      "pipeline": 1,
+      "command": "set",
+      "before_requests_per_sec": 13765.57,
+      "after_requests_per_sec": 29677.99,
+      "change_percent": 115.6
+    },
+    {
+      "pipeline": 1,
+      "command": "get",
+      "before_requests_per_sec": 33766.67,
+      "after_requests_per_sec": 30907.12,
+      "change_percent": -8.5
+    },
+    {
+      "pipeline": 1,
+      "command": "incr",
+      "before_requests_per_sec": 12909.06,
+      "after_requests_per_sec": 29154.52,
+      "change_percent": 125.8
+    },
+    {
+      "pipeline": 1,
+      "command": "lpush",
+      "before_requests_per_sec": 10799.14,
+      "after_requests_per_sec": 18648.02,
+      "change_percent": 72.7
+    },
+    {
+      "pipeline": 16,
+      "command": "set",
+      "before_requests_per_sec": 23372.68,
+      "after_requests_per_sec": 114220.45,
+      "change_percent": 388.7
+    },
+    {
+      "pipeline": 16,
+      "command": "get",
+      "before_requests_per_sec": 119617.22,
+      "after_requests_per_sec": 157728.7,
+      "change_percent": 31.9
+    },
+    {
+      "pipeline": 16,
+      "command": "incr",
+      "before_requests_per_sec": 24041.35,
+      "after_requests_per_sec": 129198.97,
+      "change_percent": 437.4
+    },
+    {
+      "pipeline": 16,
+      "command": "lpush",
+      "before_requests_per_sec": 9628.35,
+      "after_requests_per_sec": 18719.58,
+      "change_percent": 94.4
+    }
+  ]
+}

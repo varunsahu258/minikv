@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive RESP2 explainer and minikv benchmark results">
+  <title>minikv · RESP explorer</title>
+  <style>
+    :root { color-scheme: light; --ink:#17231d; --muted:#65736b; --paper:#f5f7f3; --card:#fff; --line:#dce4dc; --green:#146b4a; --mint:#e3f3e9; --orange:#d66b33; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 ui-sans-serif,system-ui,-apple-system,sans-serif; }
+    header { padding:48px max(24px,calc((100vw - 1080px)/2)); background:#183a2c; color:white; }
+    header p { max-width:720px; color:#d4e7dc; }
+    h1 { margin:0; font-size:clamp(2rem,5vw,3.6rem); letter-spacing:-.04em; }
+    h2 { margin:0 0 14px; font-size:1.45rem; }
+    main { width:min(1080px,calc(100% - 32px)); margin:32px auto 64px; display:grid; gap:24px; }
+    section { padding:24px; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 6px 24px #15291d0a; }
+    label { display:block; font-weight:650; margin-bottom:8px; }
+    .inputrow { display:flex; gap:10px; }
+    input { flex:1; min-width:0; border:1px solid #bdcbbf; border-radius:8px; padding:12px 14px; font:inherit; }
+    button { border:0; border-radius:8px; background:var(--green); color:white; font:inherit; font-weight:700; padding:0 20px; cursor:pointer; }
+    button:hover { background:#0d5438; }
+    .hint,.meta { color:var(--muted); font-size:.92rem; }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px; }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; min-height:94px; margin:8px 0 0; padding:14px; border-radius:9px; color:#e9f4ed; background:#182820; font:13px/1.6 ui-monospace,SFMono-Regular,monospace; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; font-size:.94rem; }
+    th,td { padding:9px 10px; text-align:left; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-size:.82rem; text-transform:uppercase; letter-spacing:.04em; }
+    td code { background:var(--mint); padding:2px 5px; border-radius:4px; }
+    canvas { display:block; width:100%; height:320px; margin-top:10px; }
+    .legend { display:flex; gap:18px; flex-wrap:wrap; color:var(--muted); font-size:.9rem; }
+    .dot { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:6px; }
+    .error { color:#a02e22; font-weight:600; }
+    footer { text-align:center; padding:0 20px 36px; color:var(--muted); }
+    @media(max-width:650px) { header { padding:34px 22px; } .cols { grid-template-columns:1fr; } section { padding:18px; } .inputrow { flex-direction:column; } button { padding:11px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>minikv RESP explorer</h1>
+    <p>Type a Redis command and inspect its RESP2 request bytes, byte offsets, and parsing steps. Then compare the measured minikv benchmark with Redis.</p>
+  </header>
+  <main>
+    <section aria-labelledby="wire-heading">
+      <h2 id="wire-heading">Explore a command</h2>
+      <label for="command">Command line</label>
+      <div class="inputrow"><input id="command" value="SET greeting hello" autocomplete="off" spellcheck="false"><button id="parse">Show wire format</button></div>
+      <p class="hint">Arguments are separated by spaces; single or double quotes keep spaces inside an argument. Example: <code>SET greeting "hello world"</code></p>
+      <p id="input-error" class="error" role="alert"></p>
+      <div class="cols">
+        <div><strong>Escaped wire bytes</strong><pre id="wire"></pre></div>
+        <div><strong>Hex bytes</strong><pre id="hex"></pre></div>
+      </div>
+      <h3>Parser steps</h3>
+      <table><thead><tr><th>Offset</th><th>Length</th><th>Step</th><th>Value</th></tr></thead><tbody id="steps"></tbody></table>
+    </section>
+    <section aria-labelledby="bench-heading">
+      <h2 id="bench-heading">Benchmark results</h2>
+      <p id="bench-meta" class="meta">Loading host metadata…</p>
+      <div class="legend" id="legend"></div>
+      <canvas id="chart" aria-label="Requests per second by command, target, and pipeline depth"></canvas>
+      <p class="hint">Higher is more requests per second. These are one host’s measurements; minikv uses Python and writes mutations to its AOF even with fsync disabled.</p>
+      <table><thead><tr><th>Target</th><th>Pipeline</th><th>Command</th><th>Requests/sec</th></tr></thead><tbody id="bench-table"></tbody></table>
+      <p id="bench-error" class="error" role="alert"></p>
+    </section>
+  </main>
+  <footer>minikv · a small Redis-compatible server built for learning</footer>
+  <script>
+    const encoder = new TextEncoder();
+    const input = document.querySelector('#command');
+    const errorBox = document.querySelector('#input-error');
+    function splitArgs(text) {
+      const parts = []; let token = ''; let quote = ''; let escaping = false; let active = false;
+      for (const ch of text.trim()) {
+        if (escaping) { token += ch; escaping = false; active = true; continue; }
+        if (ch === '\\' && quote) { escaping = true; continue; }
+        if (quote) { if (ch === quote) quote = ''; else token += ch; active = true; continue; }
+        if (ch === '"' || ch === "'") { quote = ch; active = true; continue; }
+        if (/\s/.test(ch)) { if (active) { parts.push(token); token = ''; active = false; } continue; }
+        token += ch; active = true;
+      }
+      if (escaping || quote) throw new Error('Finish the quoted argument before parsing.');
+      if (active) parts.push(token);
+      if (!parts.length) throw new Error('Enter a command, such as PING or SET key value.');
+      return parts;
+    }
+    function makeFrame(parts) {
+      const chunks = [encoder.encode(`*${parts.length}\r\n`)];
+      for (const part of parts) { const bytes = encoder.encode(part); chunks.push(encoder.encode(`$${bytes.length}\r\n`), bytes, encoder.encode('\r\n')); }
+      const out = new Uint8Array(chunks.reduce((n, chunk) => n + chunk.length, 0)); let offset = 0;
+      for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length; }
+      return out;
+    }
+    function escaped(bytes) { return [...bytes].map(b => b === 13 ? '\\r' : b === 10 ? '\\n' : b === 9 ? '\\t' : b >= 32 && b <= 126 ? String.fromCharCode(b) : `\\x${b.toString(16).padStart(2,'0')}`).join(''); }
+    function showParse() {
+      errorBox.textContent = '';
+      try {
+        const parts = splitArgs(input.value); const frame = makeFrame(parts);
+        document.querySelector('#wire').textContent = escaped(frame);
+        document.querySelector('#hex').textContent = [...frame].map(b => b.toString(16).padStart(2,'0')).join(' ');
+        const rows = [['0', encoder.encode(`*${parts.length}\r\n`).length, `Array header: ${parts.length} element(s)`, `*${parts.length}`]];
+        let offset = rows[0][1];
+        parts.forEach((part, i) => {
+          const bytes = encoder.encode(part); const header = encoder.encode(`$${bytes.length}\r\n`).length;
+          rows.push([offset, header, `Bulk-string ${i + 1} length prefix`, `$${bytes.length}`]); offset += header;
+          rows.push([offset, bytes.length, `Bulk-string ${i + 1} payload (${bytes.length} UTF-8 byte(s))`, part || '(empty)']); offset += bytes.length;
+          rows.push([offset, 2, `Bulk-string ${i + 1} terminator`, 'CRLF']); offset += 2;
+        });
+        document.querySelector('#steps').replaceChildren(...rows.map(row => {
+          const tr = document.createElement('tr'); row.forEach((value, index) => { const td = document.createElement('td'); td.textContent = value; if (index === 3 && row[2].includes('length')) { const code = document.createElement('code'); code.textContent = value; td.replaceChildren(code); } tr.append(td); }); return tr;
+        }));
+      } catch (error) { errorBox.textContent = error.message; }
+    }
+    document.querySelector('#parse').addEventListener('click', showParse);
+    input.addEventListener('keydown', event => { if (event.key === 'Enter') showParse(); });
+    showParse();
+
+    const colors = { 'Redis-1':'#df8a48', 'Redis-16':'#ad5525', 'minikv-1':'#35a578', 'minikv-16':'#125f43' };
+    function drawChart(rows) {
+      const canvas = document.querySelector('#chart'); const rect = canvas.getBoundingClientRect(); const dpr = devicePixelRatio || 1;
+      canvas.width = rect.width * dpr; canvas.height = 320 * dpr;
+      const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+      const width = rect.width, height = 320, left = 58, right = 14, top = 16, bottom = 46;
+      const commands = ['set','get','incr','lpush'];
+      const series = ['Redis-1','Redis-16','minikv-1','minikv-16'];
+      const values = Object.fromEntries(series.map(s => [s, commands.map(command => {
+        const [target,pipeline] = s.split('-'); const found = rows.find(r => r.target === target && r.pipeline === Number(pipeline) && r.command === command); return found ? found.requests_per_sec : 0;
+      })]));
+      const max = Math.max(1, ...Object.values(values).flat()); const plotH = height - top - bottom, plotW = width - left - right;
+      ctx.font = '12px system-ui'; ctx.strokeStyle = '#dce4dc'; ctx.fillStyle = '#65736b'; ctx.textAlign = 'right';
+      for (let i=0;i<=4;i++) { const y=top+plotH*i/4; ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(width-right,y); ctx.stroke(); ctx.fillText(Math.round(max*(4-i)/4).toLocaleString(),left-8,y+4); }
+      const groupW=plotW/commands.length, barW=Math.min(22,groupW/(series.length+1));
+      commands.forEach((command,i) => {
+        const start=left+i*groupW+(groupW-series.length*barW)/2;
+        series.forEach((s,j) => { const h=values[s][i]/max*plotH; ctx.fillStyle=colors[s]; ctx.fillRect(start+j*barW,top+plotH-h,barW-3,h); });
+        ctx.fillStyle='#17231d'; ctx.textAlign='center'; ctx.fillText(command.toUpperCase(),left+(i+.5)*groupW,height-17);
+      });
+    }
+    fetch('./bench/results.json').then(response => { if (!response.ok) throw new Error('Benchmark results are not published yet. Run bench/run.sh and deploy again.'); return response.json(); }).then(data => {
+      const m=data.metadata; document.querySelector('#bench-meta').textContent=`${m.cpu_model} · ${m.os} · Python ${m.python} · ${m.redis_version} · ${m.timestamp_utc} · ${m.minikv_aof}`;
+      const series=['Redis-1','Redis-16','minikv-1','minikv-16']; document.querySelector('#legend').replaceChildren(...series.map(s=>{const span=document.createElement('span');span.innerHTML=`<i class="dot" style="background:${colors[s]}"></i>${s.replace('-', ' · pipeline ')}`;return span;}));
+      const body=document.querySelector('#bench-table'); body.replaceChildren(...data.results.map(r=>{const tr=document.createElement('tr');[r.target,r.pipeline,r.command.toUpperCase(),Math.round(r.requests_per_sec).toLocaleString()].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td);});return tr;}));
+      drawChart(data.results); window.addEventListener('resize',()=>drawChart(data.results));
+    }).catch(error => { document.querySelector('#bench-error').textContent=error.message; });
+  </script>
+</body>
+</html>

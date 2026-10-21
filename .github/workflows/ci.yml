@@ -1,0 +1,60 @@
+name: CI and Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - run: ruff check minikv tests bench
+      - run: mypy minikv
+      - run: pytest -q
+      - name: redis-cli smoke test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y redis-tools
+          python -m minikv --appendfilename "$RUNNER_TEMP/minikv-ci.aof" &
+          server_pid=$!
+          trap 'kill -TERM "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 50); do
+            if redis-cli -p 6380 ping >/dev/null 2>&1; then break; fi
+            sleep 0.1
+          done
+          test "$(redis-cli -p 6380 ping)" = PONG
+          test "$(redis-cli -p 6380 set ci:key 1)" = OK
+          test "$(redis-cli -p 6380 get ci:key)" = 1
+
+  pages:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Build static site
+        run: ./site/build.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "minikv"
+version = "0.1.0"
+description = "A tiny asyncio RESP2 key-value server"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "redis>=5", "ruff>=0.6", "mypy>=1.11"]
+
+[tool.setuptools.packages.find]
+include = ["minikv*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true

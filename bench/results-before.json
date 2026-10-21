@@ -1,0 +1,110 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-10-18T16:40:24Z",
+    "cpu_model": "Apple M2",
+    "os": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.14.7",
+    "redis_version": "Redis server v=7.4.11 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=c8d8130a4710f7c0",
+    "minikv_aof": "enabled, appendfsync no",
+    "benchmark": "redis-benchmark -t set,get,incr,lpush -n 200000 -c 50",
+    "client_location": "Docker redis:7-alpine"
+  },
+  "results": [
+    {
+      "target": "minikv",
+      "pipeline": 1,
+      "command": "set",
+      "requests_per_sec": 13765.57
+    },
+    {
+      "target": "minikv",
+      "pipeline": 1,
+      "command": "get",
+      "requests_per_sec": 33766.67
+    },
+    {
+      "target": "minikv",
+      "pipeline": 1,
+      "command": "incr",
+      "requests_per_sec": 12909.06
+    },
+    {
+      "target": "minikv",
+      "pipeline": 1,
+      "command": "lpush",
+      "requests_per_sec": 10799.14
+    },
+    {
+      "target": "minikv",
+      "pipeline": 16,
+      "command": "set",
+      "requests_per_sec": 23372.68
+    },
+    {
+      "target": "minikv",
+      "pipeline": 16,
+      "command": "get",
+      "requests_per_sec": 119617.22
+    },
+    {
+      "target": "minikv",
+      "pipeline": 16,
+      "command": "incr",
+      "requests_per_sec": 24041.35
+    },
+    {
+      "target": "minikv",
+      "pipeline": 16,
+      "command": "lpush",
+      "requests_per_sec": 9628.35
+    },
+    {
+      "target": "Redis",
+      "pipeline": 1,
+      "command": "set",
+      "requests_per_sec": 24405.13
+    },
+    {
+      "target": "Redis",
+      "pipeline": 1,
+      "command": "get",
+      "requests_per_sec": 25053.24
+    },
+    {
+      "target": "Redis",
+      "pipeline": 1,
+      "command": "incr",
+      "requests_per_sec": 25271.67
+    },
+    {
+      "target": "Redis",
+      "pipeline": 1,
+      "command": "lpush",
+      "requests_per_sec": 25393.6
+    },
+    {
+      "target": "Redis",
+      "pipeline": 16,
+      "command": "set",
+      "requests_per_sec": 395256.94
+    },
+    {
+      "target": "Redis",
+      "pipeline": 16,
+      "command": "get",
+      "requests_per_sec": 380952.41
+    },
+    {
+      "target": "Redis",
+      "pipeline": 16,
+      "command": "incr",
+      "requests_per_sec": 337837.84
+    },
+    {
+      "target": "Redis",
+      "pipeline": 16,
+      "command": "lpush",
+      "requests_per_sec": 278551.53
+    }
+  ]
+}

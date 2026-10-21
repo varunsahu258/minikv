@@ -1,0 +1,40 @@
+Sun Oct 18 22:13:23 2026    /var/folders/r1/wb2fndts5xg60ffjzkytvqph0000gn/T/tmp.CAdZFRzSwj/minikv.prof
+
+         28677992 function calls (28176410 primitive calls) in 7.450 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1408 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     89/1    0.003    0.000    7.451    7.451 {built-in method builtins.exec}
+        1    0.000    0.000    7.451    7.451 <frozen runpy>:206(run_module)
+        1    0.000    0.000    7.450    7.450 <frozen runpy>:65(_run_code)
+        1    0.000    0.000    7.450    7.450 __main__.py:1(<module>)
+        3    0.001    0.000    7.370    2.457 base_events.py:684(run_until_complete)
+     1737    0.027    0.000    7.369    0.004 base_events.py:1977(_run_once)
+        1    0.000    0.000    7.366    7.366 runners.py:170(run)
+        1    0.000    0.000    7.365    7.365 runners.py:63(__exit__)
+        1    0.000    0.000    7.365    7.365 runners.py:66(close)
+    40871    0.016    0.000    6.818    0.000 events.py:92(_run)
+40873/40863    0.016    0.000    6.802    0.000 {method 'run' of '_contextvars.Context' objects}
+    13107    0.070    0.000    6.169    0.000 server.py:174(_handle_client)
+   200002    0.220    0.000    4.320    0.000 server.py:210(_process)
+   200002    0.473    0.000    3.392    0.000 server.py:277(_execute)
+    12501    0.090    0.000    1.592    0.000 protocol.py:26(feed)
+700008/200002    0.982    0.000    1.468    0.000 protocol.py:47(_parse_at)
+   150000    0.160    0.000    1.148    0.000 aof.py:54(append)
+   200002    0.278    0.000    1.128    0.000 commands.py:234(dispatch)
+   150000    0.104    0.000    0.891    0.000 protocol.py:132(encode_array)
+   600000    0.214    0.000    0.820    0.000 protocol.py:138(encode)
+   150000    0.085    0.000    0.762    0.000 {method 'join' of 'bytes' objects}
+   550000    0.086    0.000    0.677    0.000 protocol.py:133(<genexpr>)
+     1737    0.007    0.000    0.499    0.000 selectors.py:540(select)
+     2145    0.484    0.000    0.484    0.000 {method 'control' of 'select.kqueue' objects}
+   500000    0.290    0.000    0.483    0.000 protocol.py:123(encode_bulk_string)
+   200002    0.049    0.000    0.417    0.000 server.py:152(_queue)
+   200000    0.235    0.000    0.401    0.000 aof.py:117(canonical_write)
+   200204    0.137    0.000    0.369    0.000 queues.py:156(put_nowait)
+    13107    0.061    0.000    0.349    0.000 server.py:122(_send_loop)
+  5105648    0.335    0.000    0.335    0.000 {built-in method builtins.isinstance}
+
+
